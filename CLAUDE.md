@@ -12,7 +12,8 @@ HNR5 (Hacker News Reader 5) displays Hacker News stories with rich metadata card
 - **Deployment**: Cloudflare Workers, via `@cloudflare/vite-plugin`
 - **Styling**: Tailwind CSS 4
 - **AI**: Vercel AI SDK (`ai`) with `@openrouter/ai-sdk-provider` (`openrouter/auto` model)
-- **Storage**: Cloudflare KV (binding `CACHE`) for HTML content and tweet caching
+- **Storage**: Cloudflare KV (binding `CACHE`) for HTML content, summary, and tweet caching; Cloudflare Vectorize (binding `VECTORIZE`) for story embeddings
+- **Embeddings**: Workers AI (binding `AI`), `@cf/baai/bge-base-en-v1.5`
 - **Content Parsing**: parse5 for metadata extraction (no DOM/JSDOM — regex-based extraction for LLM input)
 - **Monitoring**: Sentry via `@sentry/tanstackstart-react` + `@sentry/cloudflare`
 - **Package Manager**: pnpm — single package, no workspace (a `pnpm-workspace.yaml` was removed; its presence without a `packages` field breaks `pnpm install --frozen-lockfile` on Cloudflare's build)
@@ -29,6 +30,11 @@ pnpm cf-typegen          # Regenerate worker-configuration.d.ts from wrangler.js
 ```
 
 No test framework is configured. Verify changes manually via `pnpm dev` and `pnpm build`.
+The one exception is `src/lib/related.test.ts`, which runs on Node's built-in runner with
+no dependencies: `node --test src/lib/related.test.ts`.
+
+`pnpm dev` requires the Vectorize index to exist (see Related stories below) — the
+`VECTORIZE` binding is remote-only, so a missing index fails startup with `code: 10159`.
 
 ## Architecture
 
@@ -62,6 +68,36 @@ POST /api/generate { id, url }
 ```
 
 In dev (`import.meta.env.DEV`), this returns a fake `{ summary: "summary" }` immediately instead of calling OpenRouter.
+
+### Related stories (semantic search)
+
+See `docs/adr/0001-related-stories-via-vector-search.md` for the calibration data behind
+the numbers below. Requires a one-time setup:
+
+```bash
+wrangler vectorize create hnr5-stories --dimensions=768 --metric=cosine
+wrangler vectorize create-metadata-index hnr5-stories --propertyName=at --type=number
+```
+
+Dimensions and metric are immutable, and the metadata index cannot be backfilled — it must
+exist before the first upsert.
+
+- **Write path**: `getStoryData` calls `indexStoryInBackground` (`src/lib/vector.ts`) for
+  card-kind stories, so the index fills from normal traffic with no crawler. A KV marker
+  `vec:{id}` makes it a no-op once a story has a vector, keeping it to one summary + one
+  embedding per story rather than per render. Runs under `waitUntil` so it never delays a
+  streaming card. **Skipped in dev** — dev summaries are fake and would poison the index.
+- **Read path**: `getRelatedStories` (`src/server/related.ts`) → `queryRelated` uses
+  Vectorize `queryById`, so no embedding call happens at read time. `story.$slug.tsx`
+  defers it into `<Related>` like the story card itself.
+- **Threshold**: `MIN_SCORE = 0.8` in `src/lib/related.ts`, calibrated over 553 stories.
+  Unrelated pairs top out at ~0.73; related pairs run 0.80–0.97. **Only valid for this
+  model, cosine distance, and `title\nsummary` as the embedded text** — re-run
+  `experiments/related.mjs` if any of those change. Roughly 10% of stories have any match
+  above it, so rendering nothing is the normal case.
+- **Summaries** are generated server-side and KV-cached under `summary:{id}` by
+  `src/lib/summary.ts`, since `/api/generate` only summarises on click and persists
+  nothing. Both share `summarySystemPrompt` and `getPageText`.
 
 ### Environment / secrets
 

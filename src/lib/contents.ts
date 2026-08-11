@@ -39,3 +39,42 @@ export const getHtmlContent = async (url: string) => {
 
   return html;
 };
+
+/** Strip HTML to plain-ish text for LLM input. No JSDOM/Readability in Workers. */
+const stripHtml = (html: string) =>
+  html
+    .replace(
+      /<(script|noscript|style|svg|nav|footer|header|aside|form|button|select|textarea|iframe|canvas|video|audio|picture)\b[^>]*>[\s\S]*?<\/\1>/gi,
+      "",
+    )
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<(img|input|link|source|br|hr|wbr)\b[^>]*\/?>/gi, "")
+    .replace(/<([a-z][a-z0-9]*)\b([^>]*)>/gi, (_match: string, tag: string, attrs: string) => {
+      const kept = attrs.match(/\b(property|name|content)="[^"]*"/gi);
+      return kept ? `<${tag} ${kept.join(" ")}>` : `<${tag}>`;
+    })
+    .replace(/\s{2,}/g, " ");
+
+/**
+ * Page text for LLM input. Cloudflare-flavored sites serve `text/markdown` directly;
+ * everything else falls back to KV-cached HTML stripped with regex.
+ * Shared by `/api/generate` (streamed summary on click) and `getSummary`
+ * (server-side summary for the related-story index) so both see identical input.
+ */
+export const getPageText = async (url: string) => {
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: "text/markdown" },
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    });
+    const contentType = response.headers.get("content-type") ?? "";
+    if (response.ok && contentType.includes("text/markdown")) {
+      return { text: await response.text(), source: "markdown" as const };
+    }
+  } catch {
+    // fall through to HTML parsing
+  }
+
+  const html = await getHtmlContent(url);
+  return html == null ? null : { text: stripHtml(html), source: "readability" as const };
+};

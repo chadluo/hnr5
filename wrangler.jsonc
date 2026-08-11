@@ -33,6 +33,31 @@
 			"binding": "CACHE",
 			"id": "d581c61ea94b48b780dfbdeb523fe84f"
 		}
+	],
+	/**
+	 * Workers AI — embeddings for related-story search (@cf/baai/bge-base-en-v1.5).
+	 * No local simulation exists, so this binding always talks to the real account.
+	 */
+	"ai": {
+		"binding": "AI"
+	},
+	/**
+	 * Vectorize — story embeddings for related-story search. Create it before deploy:
+	 *   wrangler vectorize create hnr5-stories --dimensions=768 --metric=cosine
+	 *   wrangler vectorize create-metadata-index hnr5-stories --propertyName=at --type=number
+	 * Dimensions and metric are immutable, and the 0.80 score threshold in
+	 * src/lib/related.ts is calibrated for cosine on this exact model.
+	 * The metadata index must exist before the first upsert or it cannot be
+	 * backfilled; no query filters on `at` yet, it is created for later use.
+	 * `remote: true` because Vectorize has no local simulation either — `pnpm dev`
+	 * reads the production index (writes are skipped in dev, see src/server/related.ts).
+	 */
+	"vectorize": [
+		{
+			"binding": "VECTORIZE",
+			"index_name": "hnr5-stories",
+			"remote": true
+		}
 	]
 	/**
 	 * Environment Variables
