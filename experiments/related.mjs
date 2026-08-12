@@ -165,7 +165,7 @@ const fetchCorpus = async () => {
   return [...stories.values()].slice(0, COUNT + found);
 };
 
-// Same stripping as src/routes/api/generate.ts (copied on purpose — throwaway).
+// Same stripping as src/lib/contents.ts (copied on purpose — throwaway).
 const toText = (html) =>
   html
     .replace(

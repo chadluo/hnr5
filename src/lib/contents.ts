@@ -56,12 +56,28 @@ const stripHtml = (html: string) =>
     .replace(/\s{2,}/g, " ");
 
 /**
+ * Truncation for LLM input. A stripped docs page or wiki article runs to hundreds of
+ * KB; past a model's context OpenRouter rejects the request outright, and `indexStory`
+ * then never writes its `vec:{id}` marker, so it retries that same failing call on
+ * every render. 24000 is what `experiments/related.mjs` truncated to, so indexed
+ * summaries stay comparable to the ones the 0.80 threshold was calibrated against.
+ */
+const MAX_PROMPT_CHARS = 24000;
+
+/**
  * Page text for LLM input. Cloudflare-flavored sites serve `text/markdown` directly;
  * everything else falls back to KV-cached HTML stripped with regex.
  * Shared by `/api/generate` (streamed summary on click) and `getSummary`
  * (server-side summary for the related-story index) so both see identical input.
  */
 export const getPageText = async (url: string) => {
+  // Gate before the markdown fetch, not just inside `getHtmlContent`: `indexStory`
+  // calls this for every card-kind story until its marker exists, so an unguarded
+  // blocked or `.pdf` URL costs an outbound fetch plus a 5s timeout on every render.
+  if (!canVisit(url)) {
+    return null;
+  }
+
   try {
     const response = await fetch(url, {
       headers: { Accept: "text/markdown" },
@@ -69,12 +85,19 @@ export const getPageText = async (url: string) => {
     });
     const contentType = response.headers.get("content-type") ?? "";
     if (response.ok && contentType.includes("text/markdown")) {
-      return { text: await response.text(), source: "markdown" as const };
+      return {
+        text: (await response.text()).slice(0, MAX_PROMPT_CHARS),
+        source: "markdown" as const,
+      };
     }
+    // Release the connection before the HTML fallback opens its own.
+    await response.body?.cancel();
   } catch {
     // fall through to HTML parsing
   }
 
   const html = await getHtmlContent(url);
-  return html == null ? null : { text: stripHtml(html), source: "readability" as const };
+  return html == null
+    ? null
+    : { text: stripHtml(html).slice(0, MAX_PROMPT_CHARS), source: "html" as const };
 };

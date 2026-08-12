@@ -55,14 +55,21 @@ TanStack Start has no React Server Components, so per-card streaming is done wit
 
 - `src/lib/contents.ts` (`getHtmlContent`) and `src/lib/tweet.ts` (`getCachedTweet`) both read/write the `CACHE` KV binding directly via `env` from `cloudflare:workers`.
 - HTML content: 1 hour TTL. Tweet data: 24 hour TTL.
-- `getHtmlContent` is also reused inside `src/routes/api/generate.ts` as the HTML fallback when the target page doesn't serve `text/markdown`.
+- `getHtmlContent` is reused inside `getPageText` (`src/lib/contents.ts`) as the HTML fallback when the target page doesn't serve `text/markdown`.
+- `src/lib/summary.ts` writes generated summaries to the same binding under `summary:{id}`, with no TTL.
 
-### Content pipeline for AI summaries (`src/routes/api/generate.ts`)
+### Content pipeline for AI summaries (`getPageText`, `src/lib/contents.ts`)
 
-```
+Owned by `getPageText`, not the route — both `/api/generate` and `src/lib/summary.ts` call it, so the streamed summary and the indexed one see identical input.
+
+```text
 POST /api/generate { id, url }
-    → try fetching url with Accept: text/markdown (Cloudflare-flavored sites serve this)
-    → fallback: getHtmlContent(url) [KV-cached] → regex-strip to plain-ish text (no JSDOM/Readability)
+    → getPageText(url)
+        → canVisit(url) gate — blocked hosts and .pdf/.mp4 never hit the network
+        → try fetching url with Accept: text/markdown (Cloudflare-flavored sites serve this)
+        → fallback: getHtmlContent(url) [KV-cached] → regex-strip to plain-ish text (no JSDOM/Readability)
+        → truncate to MAX_PROMPT_CHARS (24000) — an oversized page is rejected by
+          OpenRouter, and indexStory would then retry it on every render
     → streamText() with Output.object(openRouterConfig.schema) via OpenRouter
     → toTextStreamResponse()
 ```
