@@ -15,11 +15,14 @@ export const canVisit = (url: string) => {
     return false;
   }
 
-  if (url.endsWith(".pdf") || url.endsWith(".mp4")) {
+  const { hostname, pathname } = new URL(url);
+
+  // Match on the parsed pathname, not the raw URL: `paper.pdf?download=1`,
+  // `paper.pdf#page=2` and `paper.PDF` all end with neither ".pdf" nor ".mp4".
+  if (/\.(pdf|mp4)$/i.test(pathname)) {
     return false;
   }
 
-  const hostname = new URL(url).hostname;
   if (noVisitWebsiteHostnames.some((h) => hostname.includes(h))) {
     return false;
   }

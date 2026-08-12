@@ -3,6 +3,7 @@ import { getHtmlContent } from "@/lib/contents";
 import { getHnStory, type HNStory } from "@/lib/hn";
 import { getMeta, type Meta } from "@/lib/meta";
 import { getCachedTweet } from "@/lib/tweet";
+import { indexStoryInBackground } from "@/lib/vector";
 import type { Tweet } from "react-tweet/api";
 
 export type StoryData =
@@ -46,5 +47,8 @@ export const getStoryData = createServerFn({ method: "GET" })
 
     const html = await getHtmlContent(url);
     const meta = html != null ? await getMeta(storyId, html) : undefined;
+    // Fills the related-story index from ordinary traffic. Runs for every card on
+    // every render, but is a no-op once the story has a vector.
+    indexStoryInBackground(hnStory, url);
     return { kind: "card", hnStory, meta };
   });
