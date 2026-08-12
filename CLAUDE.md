@@ -30,8 +30,8 @@ pnpm cf-typegen          # Regenerate worker-configuration.d.ts from wrangler.js
 ```
 
 No test framework is configured. Verify changes manually via `pnpm dev` and `pnpm build`.
-The one exception is `src/lib/related.test.ts`, which runs on Node's built-in runner with
-no dependencies: `node --test src/lib/related.test.ts`.
+The exceptions are `src/lib/related.test.ts` and `src/lib/can_visit.test.ts`, which run on
+Node's built-in runner with no dependencies: `node --test src/lib/*.test.ts`.
 
 `pnpm dev` requires the Vectorize index to exist (see Related stories below) — the
 `VECTORIZE` binding is remote-only, so a missing index fails startup with `code: 10159`.

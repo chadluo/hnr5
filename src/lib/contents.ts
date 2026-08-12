@@ -85,19 +85,26 @@ export const getPageText = async (url: string) => {
     });
     const contentType = response.headers.get("content-type") ?? "";
     if (response.ok && contentType.includes("text/markdown")) {
-      return {
-        text: (await response.text()).slice(0, MAX_PROMPT_CHARS),
-        source: "markdown" as const,
-      };
+      // An empty document is not a usable prompt: callers only check for null, so
+      // returning `text: ""` would summarise nothing — and `getSummary` would cache
+      // that result forever and embed it. Fall through to HTML instead.
+      const text = (await response.text()).trim().slice(0, MAX_PROMPT_CHARS);
+      if (text) {
+        return { text, source: "markdown" as const };
+      }
+    } else {
+      // Release the connection before the HTML fallback opens its own.
+      await response.body?.cancel();
     }
-    // Release the connection before the HTML fallback opens its own.
-    await response.body?.cancel();
   } catch {
     // fall through to HTML parsing
   }
 
   const html = await getHtmlContent(url);
-  return html == null
-    ? null
-    : { text: stripHtml(html).slice(0, MAX_PROMPT_CHARS), source: "html" as const };
+  if (html == null) {
+    return null;
+  }
+
+  const text = stripHtml(html).trim().slice(0, MAX_PROMPT_CHARS);
+  return text ? { text, source: "html" as const } : null;
 };
