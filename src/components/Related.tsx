@@ -10,11 +10,15 @@ import { getRelatedStories } from "@/server/related";
  */
 export function Related({ storyId, isShowing }: { storyId: number; isShowing: boolean }) {
   const [related, setRelated] = React.useState<RelatedStory[]>([]);
+  // The result cannot change while the dialog is mounted, so one fetch per story is
+  // enough — reopening must not refetch, or a failed refetch would blank a good list.
+  const requested = React.useRef<number | null>(null);
 
   React.useEffect(() => {
-    if (!isShowing) {
+    if (!isShowing || requested.current === storyId) {
       return;
     }
+    requested.current = storyId;
     let cancelled = false;
     getRelatedStories({ data: storyId })
       .then((stories) => {
