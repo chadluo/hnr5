@@ -3,6 +3,7 @@ import * as React from "react";
 import { canVisit } from "@/lib/can_visit";
 import { CommentList, EmptyComment } from "./Comment";
 import type { HNStory } from "@/lib/hn";
+import { Related } from "./Related";
 import { Summary } from "./Summary";
 
 export const Dialog = ({ hnStory }: { hnStory: HNStory }) => {
@@ -120,8 +121,9 @@ export const Dialog = ({ hnStory }: { hnStory: HNStory }) => {
             )}
           >
             {canSummarize && (
-              <div className="col-span-1 row-span-1">
+              <div className="col-span-1 row-span-1 flex flex-col gap-4 md:overflow-y-auto">
                 <Summary hnStory={hnStory} isShowing={isShowing} />
+                <Related storyId={id} isShowing={isShowing} />
               </div>
             )}
             <div
