@@ -95,8 +95,10 @@ exist before the first upsert.
   embedding per story rather than per render. Runs under `waitUntil` so it never delays a
   streaming card. **Skipped in dev** — dev summaries are fake and would poison the index.
 - **Read path**: `getRelatedStories` (`src/server/related.ts`) → `queryRelated` uses
-  Vectorize `queryById`, so no embedding call happens at read time. `story.$slug.tsx`
-  defers it into `<Related>` like the story card itself.
+  Vectorize `queryById`, so no embedding call happens at read time. `<Related>`
+  (`src/components/Related.tsx`) calls it from the client when the summary/comments
+  dialog opens, and renders under the summary — so the links reach every list page,
+  not just `/story/{id}`.
 - **Threshold**: `MIN_SCORE = 0.8` in `src/lib/related.ts`, calibrated over 553 stories.
   Unrelated pairs top out at ~0.73; related pairs run 0.80–0.97. **Only valid for this
   model, cosine distance, and `title\nsummary` as the embedded text** — re-run
