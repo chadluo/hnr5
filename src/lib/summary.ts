@@ -30,6 +30,11 @@ export const getSummary = async (storyId: number, url: string) => {
     model: openrouter(openRouterConfig.model),
     system: summarySystemPrompt,
     prompt: page.text,
+    experimental_telemetry: {
+      isEnabled: true,
+      recordInputs: true,
+      recordOutputs: true,
+    },
   });
 
   const summary = text.trim();

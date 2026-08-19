@@ -1,4 +1,4 @@
-import { withSentry } from "@sentry/cloudflare";
+import { withSentry, vercelAIIntegration } from "@sentry/cloudflare/nodejs_compat";
 import { wrapFetchWithSentry } from "@sentry/tanstackstart-react";
 import handler, {
   createServerEntry,
@@ -16,7 +16,13 @@ const serverEntry = createServerEntry(requestHandler);
 export default withSentry(
   (env: Env) => ({
     dsn: env.SENTRY_DSN,
-    tracesSampleRate: 1,
+    environment: import.meta.env.DEV ? "development" : "production",
+    // The AI SDK is v7, which needs the `/nodejs_compat` entrypoint. Cloudflare cannot
+    // patch call sites, so every generateText/streamText must also pass
+    // `experimental_telemetry: { isEnabled: true }` or it produces no spans.
+    integrations: [vercelAIIntegration()],
+    enableLogs: true,
+    tracesSampleRate: 0.1,
   }),
   {
     fetch: (request) => serverEntry.fetch(request),

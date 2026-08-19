@@ -116,7 +116,11 @@ Client-side Sentry DSN is a separate, non-secret build-time var: `VITE_SENTRY_DS
 
 ### Sentry wiring
 
-`wrangler.jsonc`'s `main` points at `src/server.ts` instead of the framework's default `@tanstack/react-start/server-entry`, so the Worker entry point can be wrapped. That file wraps the TanStack request handler with `wrapFetchWithSentry` (from `@sentry/tanstackstart-react`) and then `withSentry` (from `@sentry/cloudflare`, for Workers isolate lifecycle). Global request/function middleware for Sentry is registered separately in `src/start.ts` via `createStart`.
+`wrangler.jsonc`'s `main` points at `src/server.ts` instead of the framework's default `@tanstack/react-start/server-entry`, so the Worker entry point can be wrapped. That file wraps the TanStack request handler with `wrapFetchWithSentry` (from `@sentry/tanstackstart-react`) and then `withSentry` (from `@sentry/cloudflare/nodejs_compat`, for Workers isolate lifecycle). Global request/function middleware for Sentry is registered separately in `src/start.ts` via `createStart`.
+
+The `/nodejs_compat` entrypoint is required for `vercelAIIntegration()` with AI SDK v7. Cloudflare cannot patch call sites, so **every `generateText`/`streamText` call must pass `experimental_telemetry: { isEnabled: true }`** or it produces no AI spans — currently `src/lib/summary.ts` and `src/routes/api/generate.ts`.
+
+Source maps are uploaded to Sentry by `sentryVitePlugin` in `vite.config.ts`, which also stamps the release. It is skipped unless `SENTRY_AUTH_TOKEN` is set, so local builds are unaffected; the Cloudflare build needs `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` as **build** variables. `upload_source_maps` in `wrangler.jsonc` is separate — it feeds Cloudflare's own dashboard, not Sentry.
 
 ### Blocklist
 

@@ -46,6 +46,11 @@ export const Route = createFileRoute("/api/generate")({
             output: Output.object({ schema: openRouterConfig.schema }),
             system: summarySystemPrompt,
             prompt: content,
+            experimental_telemetry: {
+              isEnabled: true,
+              recordInputs: true,
+              recordOutputs: true,
+            },
           });
 
           console.info({ ...trace, result: "streaming" });
