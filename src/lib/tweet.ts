@@ -10,7 +10,19 @@ export async function getCachedTweet(id: string): Promise<Tweet | undefined> {
     return cached as Tweet;
   }
 
-  const tweet = await getTweet(id);
+  // react-tweet throws on any non-2xx whose body is not JSON: fetch-tweet.js reads
+  // `data.error` after setting `data = undefined`, so its own fallback message is
+  // unreachable and you get a TypeError instead. x.com's syndication endpoint serves
+  // HTML rate-limit and block pages often enough that this rejected the whole story
+  // card. The card already renders <TweetNotFound /> for an absent tweet.
+  let tweet: Tweet | undefined;
+  try {
+    tweet = await getTweet(id);
+  } catch (err) {
+    console.error({ tweetId: id, result: "getTweet failed", err });
+    return undefined;
+  }
+
   if (tweet != null) {
     await env.CACHE.put(cacheKey, JSON.stringify(tweet), {
       expirationTtl: CACHE_TTL_SECONDS,
