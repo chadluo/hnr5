@@ -1,3 +1,4 @@
+import { PostHogProvider } from "@posthog/react";
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
@@ -6,6 +7,21 @@ const SITE_TITLE = "Hacker News Reader";
 const SITE_DESCRIPTION =
   "Yet another Hacker News Reader with metadata cards and some LLM summaries.";
 const SITE_IMAGE = "/hnr.png";
+
+const posthogProjectToken = import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN;
+const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST;
+
+if (import.meta.env.DEV && !posthogProjectToken) {
+  throw new Error(
+    "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once VITE_PUBLIC_POSTHOG_PROJECT_TOKEN is configured",
+  );
+}
+
+if (import.meta.env.DEV && !posthogHost) {
+  throw new Error(
+    "VITE_PUBLIC_POSTHOG_HOST variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once VITE_PUBLIC_POSTHOG_HOST is configured",
+  );
+}
 
 export const Route = createRootRoute({
   head: () => ({
@@ -63,7 +79,22 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         style={{ background }}
         className="min-h-screen max-w-full overflow-x-hidden font-sans text-sm text-white md:text-base"
       >
-        {children}
+        {posthogProjectToken && posthogHost ? (
+          <PostHogProvider
+            apiKey={posthogProjectToken}
+            options={{
+              api_host: posthogHost,
+              ui_host: posthogHost,
+              defaults: "2025-05-24",
+              capture_exceptions: true,
+              debug: import.meta.env.DEV,
+            }}
+          >
+            {children}
+          </PostHogProvider>
+        ) : (
+          children
+        )}
         <script src="https://kit.fontawesome.com/8c38f2aa0a.js" async />
         <Scripts />
       </body>

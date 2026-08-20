@@ -1,3 +1,4 @@
+import { usePostHog } from "@posthog/react";
 import { Await } from "@tanstack/react-router";
 import { EmbeddedTweet, TweetNotFound } from "react-tweet";
 import { Card } from "./Card";
@@ -13,6 +14,8 @@ export function Story({ promise }: { promise: Promise<StoryData> }) {
 }
 
 function StoryContent({ data }: { data: StoryData }) {
+  const posthog = usePostHog();
+
   if (data.kind === "missing") {
     return null;
   }
@@ -28,6 +31,12 @@ function StoryContent({ data }: { data: StoryData }) {
         className="font-bold hover:text-[#f60]"
         target="_blank"
         rel="noreferrer"
+        onClick={() =>
+          posthog?.capture("story_discussion_link_opened", {
+            story_id: id,
+            story_type: data.kind,
+          })
+        }
       >
         {title}
       </a>

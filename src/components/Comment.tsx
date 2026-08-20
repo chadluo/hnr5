@@ -1,3 +1,4 @@
+import { usePostHog } from "@posthog/react";
 import classNames from "classnames";
 import * as React from "react";
 import { type HNComment, getHNComment } from "@/lib/hn";
@@ -28,6 +29,7 @@ export function CommentList({
   isExpanded,
   hasStoryText,
 }: CommentListProps) {
+  const posthog = usePostHog();
   const [visibleCount, setVisibleCount] = React.useState(BATCH_SIZE);
   const visibleKids = kids.slice(0, visibleCount);
   const hasMore = visibleCount < kids.length;
@@ -48,7 +50,13 @@ export function CommentList({
       {hasMore && (
         <button
           type="button"
-          onClick={() => setVisibleCount((c) => c + BATCH_SIZE)}
+          onClick={() => {
+            setVisibleCount((c) => c + BATCH_SIZE);
+            posthog?.capture("comments_load_more_clicked", {
+              comments_remaining: kids.length - visibleCount,
+              nesting_level: isTop ? "top_level" : "reply",
+            });
+          }}
           className={classNames(
             "my-2 cursor-pointer rounded bg-transparent px-3 py-1.5 text-sm text-neutral-200 hover:bg-neutral-700 active:bg-neutral-600",
             { "ml-8": !isTop },

@@ -1,3 +1,4 @@
+import { usePostHog } from "@posthog/react";
 import classNames from "classnames";
 import * as React from "react";
 import { canVisit } from "@/lib/can_visit";
@@ -7,6 +8,7 @@ import { Related } from "./Related";
 import { Summary } from "./Summary";
 
 export const Dialog = ({ hnStory }: { hnStory: HNStory }) => {
+  const posthog = usePostHog();
   const dialogRef = React.useRef(null);
   const [isShowing, setShowing] = React.useState(false);
 
@@ -18,6 +20,18 @@ export const Dialog = ({ hnStory }: { hnStory: HNStory }) => {
     }
     (dialogRef.current as HTMLDialogElement).showModal();
     setShowing(true);
+    posthog?.capture("story_discussion_opened", {
+      story_id: id,
+      comment_count: kids?.length ?? 0,
+      summary_available: canSummarize,
+      story_type: type,
+    });
+    if (canSummarize) {
+      posthog?.capture("story_summary_requested", {
+        story_id: id,
+        story_type: type,
+      });
+    }
   };
 
   const closeDialog = () => {

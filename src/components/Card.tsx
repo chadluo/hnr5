@@ -1,3 +1,4 @@
+import { usePostHog } from "@posthog/react";
 import type { Meta } from "@/lib/meta";
 
 type Website =
@@ -23,6 +24,7 @@ export function Card({
   hnText: string | undefined;
   meta: Meta | undefined;
 }) {
+  const posthog = usePostHog();
   const linkUrl = url ?? hnUrl;
 
   if (!url || meta == null) {
@@ -32,6 +34,11 @@ export function Card({
       source: extractSource(linkUrl),
       description: hnText ?? "",
       icon: undefined,
+      onOpen: () =>
+        posthog?.capture("story_article_opened", {
+          story_source: "hacker_news",
+          preview_type: "fallback",
+        }),
     });
   }
 
@@ -53,6 +60,11 @@ export function Card({
     description,
     imageUrl,
     imageAlt,
+    onOpen: () =>
+      posthog?.capture("story_article_opened", {
+        story_source: website ?? "other",
+        preview_type: "metadata",
+      }),
   });
 }
 
@@ -64,6 +76,7 @@ function renderCard({
   description,
   imageUrl,
   imageAlt,
+  onOpen,
 }: {
   url: string;
   source: string;
@@ -72,6 +85,7 @@ function renderCard({
   icon: React.JSX.Element | undefined;
   imageUrl?: string;
   imageAlt?: string;
+  onOpen: () => void;
 }) {
   return (
     <a
@@ -80,6 +94,7 @@ function renderCard({
       className="flex flex-col gap-3 rounded bg-neutral-900/60 p-3 hover:bg-neutral-800/80 md:flex-row-reverse"
       target="_blank"
       rel="noreferrer"
+      onClick={onOpen}
     >
       {imageUrl && (
         <div className="basis-1/3">
