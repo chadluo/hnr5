@@ -33,6 +33,14 @@ No test framework is configured. Verify changes manually via `pnpm dev` and `pnp
 The exceptions are `src/lib/related.test.ts` and `src/lib/can_visit.test.ts`, which run on
 Node's built-in runner with no dependencies: `node --test src/lib/*.test.ts`.
 
+**CI/CD**: Cloudflare Workers Builds auto-deploys on every push to `main` — confirmed via
+`wrangler deployments list` showing a deploy land within minutes of a push, with no manual
+`pnpm deploy` run. This is configured in the Cloudflare dashboard (git integration), not a
+file in this repo, which is why `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT` are set as
+Cloudflare **build** variables rather than `wrangler secret`. `pnpm deploy` is only for
+deploying local changes ahead of a push (e.g. testing a Worker-only config change like a
+cron trigger before committing).
+
 `pnpm dev` requires the Vectorize index to exist (see Related stories below) — the
 `VECTORIZE` binding is remote-only, so a missing index fails startup with `code: 10159`.
 
