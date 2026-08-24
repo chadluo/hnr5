@@ -44,7 +44,21 @@ export const queryRelated = async (storyId: number): Promise<RelatedStory[]> => 
   }
 };
 
-const indexStory = async (hnStory: HNStory, url: string) => {
+/**
+ * True for URLs `getStoryData` (`src/server/story.ts`) renders as a metadata card —
+ * false for tweet/YouTube embeds, which it dispatches on separately and never indexes.
+ * Duplicated here (not imported) because that dispatch logic lives inline in a
+ * server function; keep the two in sync if a new embed kind is added there.
+ */
+export const isCardUrl = (url: string): boolean => {
+  const { hostname, pathname } = new URL(url);
+  if ((hostname === "twitter.com" || hostname === "x.com") && /\/status\/\d+/.test(pathname)) {
+    return false;
+  }
+  return !hostname.endsWith("youtube.com");
+};
+
+export const indexStory = async (hnStory: HNStory, url: string) => {
   // A KV read is cheaper and faster than a Vectorize query, and this runs for all 30
   // cards on every front-page render, so the marker is what keeps the summary and
   // embedding calls to one per story instead of one per render.

@@ -27,6 +27,18 @@
 	},
 	"upload_source_maps": true,
 	/**
+	 * Cron Triggers — fill the related-story index independent of site traffic (see
+	 * src/lib/cron.ts). Offset a few minutes past the clock so the batch of HN/OpenRouter/
+	 * Workers AI calls doesn't land at the same moment every other :00 cron job on the
+	 * internet fires. Must match TOP_CRON / BEST_CRON in src/lib/cron.ts exactly.
+	 */
+	"triggers": {
+		"crons": [
+			"7 */4 * * *",
+			"13 3 * * *"
+		]
+	},
+	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
 	 */

@@ -4,6 +4,7 @@ import handler, {
   createServerEntry,
   type ServerEntry,
 } from "@tanstack/react-start/server-entry";
+import { runIndexCron } from "@/lib/cron";
 
 const requestHandler: ServerEntry = wrapFetchWithSentry({
   fetch(request: Request) {
@@ -26,5 +27,8 @@ export default withSentry(
   }),
   {
     fetch: (request) => serverEntry.fetch(request),
+    scheduled: (controller, _env, ctx) => {
+      ctx.waitUntil(runIndexCron(controller.cron));
+    },
   },
 );
