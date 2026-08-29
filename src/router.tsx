@@ -13,7 +13,15 @@ export function getRouter() {
   if (typeof window !== "undefined" && import.meta.env.VITE_SENTRY_DSN) {
     Sentry.init({
       dsn: import.meta.env.VITE_SENTRY_DSN,
-      integrations: [Sentry.tanstackRouterBrowserTracingIntegration(router)],
+      integrations: [
+        Sentry.tanstackRouterBrowserTracingIntegration(router),
+        // Comment.tsx's console.error(err) calls pass the Error directly, so this
+        // produces real captureException events (proper stack, proper grouping) —
+        // unlike the server's object-first console.error({...}) calls, which don't
+        // fit this integration's `instanceof Error` check. Server errors stay on
+        // Cloudflare Workers Logs instead; see wrangler.jsonc's observability config.
+        Sentry.captureConsoleIntegration({ levels: ["error"] }),
+      ],
       tracesSampleRate: 0.1,
     });
   }
