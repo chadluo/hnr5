@@ -27,7 +27,7 @@ export async function getHNStories(storyRank = "top") {
     );
     return (await response.json()) as number[];
   } catch (err) {
-    console.error({ error: `Failed fetching stories: ${err}`, storyRank });
+    console.error({ message: "Failed fetching stories", storyRank, err });
     return [];
   }
 }
@@ -39,7 +39,7 @@ export async function getHnStory(storyId: number) {
     });
     return (await response.json()) as HNStory;
   } catch (err) {
-    console.error({ error: `Failed getting story: ${err}`, storyId });
+    console.error({ message: "Failed getting story", storyId, err });
   }
 }
 
@@ -54,6 +54,12 @@ export async function getHNComment(
     });
     return (await response.json()) as HNComment;
   } catch (err) {
-    console.error({ error: `Failed getting comment: ${err}`, commentId });
+    // Comment.tsx aborts this fetch on every unmount/collapse — routine, not a
+    // failure. Logging it would flood both Workers Logs and (via
+    // captureConsoleIntegration) Sentry with non-actionable cancellations.
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return;
+    }
+    console.error({ message: "Failed getting comment", commentId, err });
   }
 }

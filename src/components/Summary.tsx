@@ -12,6 +12,9 @@ export const Summary = ({ hnStory, isShowing }: SummaryProps) => {
   const { object, submit, isLoading } = useObject({
     api: "/api/generate",
     schema: openRouterConfig.schema,
+    onError: (error) => {
+      console.error(error, { storyId: hnStory.id, event: "summary_generation_failed" });
+    },
   });
 
   const submit2 = React.useCallback(submit, []);

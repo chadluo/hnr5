@@ -41,7 +41,7 @@ function findRawMeta(storyId: number, html: string): Map<string, string[]> {
       if (node.nodeName === "title") {
         const value = node.childNodes[0] as DefaultTreeAdapterTypes.TextNode;
         if (value == null) {
-          console.warn("Cannot load title", { storyId });
+          console.info({ message: "Cannot load title", storyId });
         } else {
           return [
             "title",
@@ -80,7 +80,7 @@ function findRawMeta(storyId: number, html: string): Map<string, string[]> {
       new Map(),
     );
   if (!rawMeta) {
-    console.warn("Cannot load metadata", { storyId });
+    console.info({ message: "Cannot load metadata", storyId });
     return new Map();
   }
   return rawMeta;

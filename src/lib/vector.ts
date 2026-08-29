@@ -58,23 +58,26 @@ export const isCardUrl = (url: string): boolean => {
   return !hostname.endsWith("youtube.com");
 };
 
-export const indexStory = async (hnStory: HNStory, url: string) => {
+/** Resolves `true` only when a new vector was actually upserted — `false` covers a
+ * cache hit and a story that couldn't be summarized or embedded, neither of which
+ * is an error. Lets callers (the index cron) count real work instead of no-ops. */
+export const indexStory = async (hnStory: HNStory, url: string): Promise<boolean> => {
   // A KV read is cheaper and faster than a Vectorize query, and this runs for all 30
   // cards on every front-page render, so the marker is what keeps the summary and
   // embedding calls to one per story instead of one per render.
   const marker = `vec:${hnStory.id}`;
   if ((await env.CACHE.get(marker)) != null) {
-    return;
+    return false;
   }
 
   const summary = await getSummary(hnStory.id, url);
   if (summary == null) {
-    return;
+    return false;
   }
 
   const values = await embedOne(embedInput(hnStory.title, summary));
   if (values == null) {
-    return;
+    return false;
   }
 
   await index().upsert([
@@ -92,6 +95,7 @@ export const indexStory = async (hnStory: HNStory, url: string) => {
   ]);
 
   await env.CACHE.put(marker, "1");
+  return true;
 };
 
 /**

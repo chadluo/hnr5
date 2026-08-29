@@ -26,7 +26,7 @@ export async function getCachedTweet(id: string): Promise<Tweet | undefined> {
   try {
     tweet = await getTweet(id, { headers: { "User-Agent": TWEET_FETCH_UA } });
   } catch (err) {
-    console.error({ tweetId: id, result: "getTweet failed", err });
+    console.error({ message: "Cannot get tweet", tweetId: id, err });
     return undefined;
   }
 
