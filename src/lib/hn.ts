@@ -54,6 +54,12 @@ export async function getHNComment(
     });
     return (await response.json()) as HNComment;
   } catch (err) {
+    // Comment.tsx aborts this fetch on every unmount/collapse — routine, not a
+    // failure. Logging it would flood both Workers Logs and (via
+    // captureConsoleIntegration) Sentry with non-actionable cancellations.
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return;
+    }
     console.error({ message: "Failed getting comment", commentId, err });
   }
 }
