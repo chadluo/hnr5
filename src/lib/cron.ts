@@ -34,13 +34,25 @@ export const runIndexCron = async (cron: string) => {
   let errors = 0;
   for (const id of ids) {
     const hnStory = await getHnStory(id);
-    if (!hnStory?.url || !isCardUrl(hnStory.url)) {
+    if (hnStory == null) {
+      // getHnStory already logged the fetch/parse failure — a real error, not
+      // a story that's simply ineligible for indexing.
+      errors++;
+      continue;
+    }
+    if (!hnStory.url || !isCardUrl(hnStory.url)) {
       skipped++;
       continue;
     }
     try {
-      await indexStory(hnStory, hnStory.url);
-      indexed++;
+      const wasIndexed = await indexStory(hnStory, hnStory.url);
+      if (wasIndexed) {
+        indexed++;
+      } else {
+        // Cache hit, or the page couldn't be summarized/embedded — neither is new
+        // work done, but neither is a failure either.
+        skipped++;
+      }
     } catch (err) {
       errors++;
       console.error({ message: "Cron: cannot index story", storyId: id, err });
