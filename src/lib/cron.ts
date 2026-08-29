@@ -29,15 +29,23 @@ export const runIndexCron = async (cron: string) => {
   }
 
   const ids = await getHNStories(feed);
+  let indexed = 0;
+  let skipped = 0;
+  let errors = 0;
   for (const id of ids) {
     const hnStory = await getHnStory(id);
     if (!hnStory?.url || !isCardUrl(hnStory.url)) {
+      skipped++;
       continue;
     }
     try {
       await indexStory(hnStory, hnStory.url);
+      indexed++;
     } catch (err) {
+      errors++;
       console.error({ message: "Cron: cannot index story", storyId: id, err });
     }
   }
+
+  console.info({ message: "Cron run finished", feed, total: ids.length, indexed, skipped, errors });
 };
