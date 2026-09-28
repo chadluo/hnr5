@@ -1,200 +1,75 @@
-Welcome to your new TanStack Start app!
+# HNR5
 
-# Getting Started
+Hacker News reader with metadata cards and AI summaries. It runs on TanStack Start and
+Cloudflare Workers.
 
-To run this application:
+## Run locally
+
+1. Install [mise](https://mise.jdx.dev/). Then install the pinned Node and pnpm from
+   `mise.toml`:
+
+   ```bash
+   mise trust
+   mise install
+   ```
+
+2. Install the dependencies:
+
+   ```bash
+   pnpm install
+   ```
+
+3. Log in to Cloudflare. The `AI` and `VECTORIZE` bindings always use your real
+   account, also in dev:
+
+   ```bash
+   pnpm exec wrangler login
+   ```
+
+4. Create the Vectorize index one time for each account. If the index is missing,
+   `pnpm dev` fails with `code: 10159`:
+
+   ```bash
+   pnpm exec wrangler vectorize create hnr5-stories --dimensions=768 --metric=cosine
+   pnpm exec wrangler vectorize create-metadata-index hnr5-stories --propertyName=at --type=number
+   ```
+
+5. Create `.env`. Wrangler and Vite load it in dev. The PostHog values are required:
+   dev throws an error without them. The other values are optional, because dev
+   summaries are fake and Sentry stays off without a DSN.
+
+   ```bash
+   VITE_PUBLIC_POSTHOG_PROJECT_TOKEN=...   # required
+   VITE_PUBLIC_POSTHOG_HOST=...            # required
+   OPENROUTER_API_KEY=...                  # optional
+   SENTRY_DSN=...                          # optional
+   VITE_SENTRY_DSN=...                     # optional
+   ```
+
+6. Start the dev server on <http://localhost:3000>:
+
+   ```bash
+   pnpm dev
+   ```
+
+## Troubleshooting
+
+- `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`, or a warning that the `pnpm` field is ignored:
+  you use pnpm 11 or later. Run `mise install`, then run `pnpm -v` and make sure it shows
+  10.x.
+- SSR error `Cannot read properties of null (reading 'useContext')`, or
+  `file does not exist ... deps_ssr`: the Vite dependency cache is stale. Stop all dev
+  servers, run `rm -rf node_modules/.vite`, and start again.
+
+## Checks
 
 ```bash
-pnpm install
-pnpm dev
-```
-
-# Building For Production
-
-To build this application for production:
-
-```bash
+pnpm exec tsc --noEmit
 pnpm build
+node --test src/lib/*.test.ts
 ```
 
-## Styling
+## Deploy
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
-
-### Removing Tailwind CSS
-
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Remove `@tailwindcss/vite` and `tailwindcss` from `package.json`
-
-
-## Deploy to Cloudflare Workers
-
-This project uses the Cloudflare Vite plugin (configured in `vite.config.ts`) and `wrangler.jsonc`:
-
-1. Install Wrangler: `npm install -g wrangler`
-2. Authenticate: `wrangler login`
-3. Deploy: `npx wrangler deploy`
-
-For production env vars, run `wrangler secret put MY_VAR` for each secret listed in `.env.example`. Public (non-secret) vars go in `wrangler.jsonc` under `vars`.
-
-KV, D1, R2, and Durable Object bindings are configured in `wrangler.jsonc` — see https://developers.cloudflare.com/workers/wrangler/configuration/.
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+Pushes to `main` deploy through Cloudflare Workers Builds. `CLAUDE.md` has the
+architecture and deployment details.

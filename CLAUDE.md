@@ -16,9 +16,12 @@ HNR5 (Hacker News Reader 5) displays Hacker News stories with rich metadata card
 - **Embeddings**: Workers AI (binding `AI`), `@cf/baai/bge-base-en-v1.5`
 - **Content Parsing**: parse5 for metadata extraction (no DOM/JSDOM — regex-based extraction for LLM input)
 - **Monitoring**: Sentry via `@sentry/tanstackstart-react` + `@sentry/cloudflare`
-- **Package Manager**: pnpm — single package, no workspace (a `pnpm-workspace.yaml` was removed; its presence without a `packages` field breaks `pnpm install --frozen-lockfile` on Cloudflare's build)
+- **Package Manager**: pnpm 10, single package. Keep `pnpm.onlyBuiltDependencies` in `package.json`; do not add `pnpm-workspace.yaml`.
+- **Toolchain**: `mise.toml` pins Node 24 and pnpm 10. Do not change pnpm to `latest`: pnpm 11+ ignores the `pnpm` field in `package.json` and rejects packages published less than a day ago.
 
 ## Commands
+
+First-time setup is in `README.md`.
 
 ```bash
 pnpm dev              # Dev server on port 3000 (runs against local Workers runtime via workerd)
@@ -29,17 +32,12 @@ pnpm generate-routes     # Regenerate src/routeTree.gen.ts after adding/removing
 pnpm cf-typegen          # Regenerate worker-configuration.d.ts from wrangler.jsonc (run after editing wrangler.jsonc)
 ```
 
-No test framework is configured. Verify changes manually via `pnpm dev` and `pnpm build`.
-The exceptions are `src/lib/related.test.ts` and `src/lib/can_visit.test.ts`, which run on
-Node's built-in runner with no dependencies: `node --test src/lib/*.test.ts`.
+For code changes, run `pnpm exec tsc --noEmit`, `pnpm build`, and
+`node --test src/lib/*.test.ts`. Use `pnpm dev` for browser checks.
 
-**CI/CD**: Cloudflare Workers Builds auto-deploys on every push to `main` — confirmed via
-`wrangler deployments list` showing a deploy land within minutes of a push, with no manual
-`pnpm deploy` run. This is configured in the Cloudflare dashboard (git integration), not a
-file in this repo, which is why `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT` are set as
-Cloudflare **build** variables rather than `wrangler secret`. `pnpm deploy` is only for
-deploying local changes ahead of a push (e.g. testing a Worker-only config change like a
-cron trigger before committing).
+**CI/CD**: Pushes to `main` auto-deploy through Cloudflare Workers Builds, configured in
+the dashboard. Set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` as build
+variables there. Use `pnpm deploy` only for a local deployment before a push.
 
 `pnpm dev` requires the Vectorize index to exist (see Related stories below) — the
 `VECTORIZE` binding is remote-only, so a missing index fails startup with `code: 10159`.
@@ -97,11 +95,9 @@ wrangler vectorize create-metadata-index hnr5-stories --propertyName=at --type=n
 Dimensions and metric are immutable, and the metadata index cannot be backfilled — it must
 exist before the first upsert.
 
-- **Write path**: `getStoryData` calls `indexStoryInBackground` (`src/lib/vector.ts`) for
-  card-kind stories, so the index fills from normal traffic with no crawler. A KV marker
-  `vec:{id}` makes it a no-op once a story has a vector, keeping it to one summary + one
-  embedding per story rather than per render. Runs under `waitUntil` so it never delays a
-  streaming card. **Skipped in dev** — dev summaries are fake and would poison the index.
+- **Write path**: `getStoryData` schedules card indexing with `waitUntil`. The `vec:{id}`
+  KV marker prevents repeat summary and embedding work. Dev skips indexing because its
+  summaries are fake.
 - **Read path**: `getRelatedStories` (`src/server/related.ts`) → `queryRelated` uses
   Vectorize `queryById`, so no embedding call happens at read time. `<Related>`
   (`src/components/Related.tsx`) calls it from the client when the summary/comments
@@ -118,15 +114,17 @@ exist before the first upsert.
 
 ### Environment / secrets
 
-`src/env.d.ts` augments the ambient `__BaseEnv_Env` interface (declaration-merged with the wrangler-generated `worker-configuration.d.ts`) to type `OPENROUTER_API_KEY` and `SENTRY_DSN`, since these are secrets set via `wrangler secret put` and never appear in `wrangler.jsonc`. Re-run `pnpm cf-typegen` after changing `wrangler.jsonc` bindings — it regenerates `worker-configuration.d.ts` but leaves `src/env.d.ts`'s merge intact.
+`src/env.d.ts` adds secret-only bindings (`OPENROUTER_API_KEY` and `SENTRY_DSN`) to the
+generated environment types. Run `pnpm cf-typegen` after `wrangler.jsonc` binding changes,
+not after secret changes.
 
 Client-side Sentry DSN is a separate, non-secret build-time var: `VITE_SENTRY_DSN`.
 
 ### Sentry wiring
 
-`wrangler.jsonc`'s `main` points at `src/server.ts` instead of the framework's default `@tanstack/react-start/server-entry`, so the Worker entry point can be wrapped. That file wraps the TanStack request handler with `wrapFetchWithSentry` (from `@sentry/tanstackstart-react`) and then `withSentry` (from `@sentry/cloudflare/nodejs_compat`, for Workers isolate lifecycle). Global request/function middleware for Sentry is registered separately in `src/start.ts` via `createStart`.
+`wrangler.jsonc`'s `main` points at `src/server.ts` instead of the framework's default `@tanstack/react-start/server-entry`, so the Worker entry point can be wrapped. That file wraps the TanStack request handler with `wrapFetchWithSentry` (from `@sentry/tanstackstart-react`) and then `withSentry` (from `@sentry/cloudflare`, for Workers isolate lifecycle). Global request/function middleware for Sentry is registered separately in `src/start.ts` via `createStart`.
 
-The `/nodejs_compat` entrypoint is required for `vercelAIIntegration()` with AI SDK v7. Cloudflare cannot patch call sites, so **every `generateText`/`streamText` call must pass `experimental_telemetry: { isEnabled: true }`** or it produces no AI spans — currently `src/lib/summary.ts` and `src/routes/api/generate.ts`.
+Sentry 11 removed the `/nodejs_compat` entrypoint and the `enableLogs` option; the root export's `vercelAIIntegration()` listens on `node:diagnostics_channel` for AI SDK v7, and logs are always on. Cloudflare cannot patch call sites, so **every `generateText`/`streamText` call must pass `experimental_telemetry: { isEnabled: true }`** or it produces no AI spans — currently `src/lib/summary.ts` and `src/routes/api/generate.ts`.
 
 Source maps are uploaded to Sentry by `sentryVitePlugin` in `vite.config.ts`, which also stamps the release. It is skipped unless `SENTRY_AUTH_TOKEN` is set, so local builds are unaffected; the Cloudflare build needs `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` as **build** variables. `upload_source_maps` in `wrangler.jsonc` is separate — it feeds Cloudflare's own dashboard, not Sentry.
 
