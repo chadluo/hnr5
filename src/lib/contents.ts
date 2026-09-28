@@ -4,6 +4,12 @@ import { canVisit } from "./can_visit";
 const DEFAULT_TIMEOUT_MS = 5000;
 const CACHE_TTL_SECONDS = 3600;
 
+/**
+ * Workers `fetch` sends no User-Agent, and some hosts (e.g. bearblog.dev) answer that
+ * with a 404 instead of the page.
+ */
+const USER_AGENT = "Mozilla/5.0 (compatible; hnr5/1.0; +https://hnr.adluo.ch)";
+
 export const getHtmlContent = async (url: string) => {
   if (!canVisit(url)) {
     return null;
@@ -21,8 +27,20 @@ export const getHtmlContent = async (url: string) => {
     DEFAULT_TIMEOUT_MS,
   );
 
-  const html = await fetch(url, { signal: controller.signal })
-    .then((response) => response.text())
+  const html = await fetch(url, {
+    headers: { "User-Agent": USER_AGENT },
+    signal: controller.signal,
+  })
+    .then(async (response) => {
+      // An error page is not the story's content. Returning its body would cache it,
+      // summarise it forever under `summary:{id}`, and embed it as a related story.
+      if (!response.ok) {
+        await response.body?.cancel();
+        console.error({ message: "Cannot fetch html", url, status: response.status });
+        return null;
+      }
+      return response.text();
+    })
     .catch((err) => {
       console.error({ message: "Cannot fetch html", url, err });
       return null;
@@ -80,7 +98,7 @@ export const getPageText = async (url: string) => {
 
   try {
     const response = await fetch(url, {
-      headers: { Accept: "text/markdown" },
+      headers: { Accept: "text/markdown", "User-Agent": USER_AGENT },
       signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
     });
     const contentType = response.headers.get("content-type") ?? "";
