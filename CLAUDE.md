@@ -16,9 +16,12 @@ HNR5 (Hacker News Reader 5) displays Hacker News stories with rich metadata card
 - **Embeddings**: Workers AI (binding `AI`), `@cf/baai/bge-base-en-v1.5`
 - **Content Parsing**: parse5 for metadata extraction (no DOM/JSDOM — regex-based extraction for LLM input)
 - **Monitoring**: Sentry via `@sentry/tanstackstart-react` + `@sentry/cloudflare`
-- **Package Manager**: pnpm, single package. Keep `pnpm.onlyBuiltDependencies` in `package.json`; do not add `pnpm-workspace.yaml`.
+- **Package Manager**: pnpm 10, single package. Keep `pnpm.onlyBuiltDependencies` in `package.json`; do not add `pnpm-workspace.yaml`.
+- **Toolchain**: `mise.toml` pins Node 24 and pnpm 10. Do not change pnpm to `latest`: pnpm 11+ ignores the `pnpm` field in `package.json` and rejects packages published less than a day ago.
 
 ## Commands
+
+First-time setup is in `README.md`.
 
 ```bash
 pnpm dev              # Dev server on port 3000 (runs against local Workers runtime via workerd)
