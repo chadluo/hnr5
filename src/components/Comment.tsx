@@ -1,7 +1,7 @@
+import { type HNComment, getHNComment } from "@/lib/hn";
 import { usePostHog } from "@posthog/react";
 import classNames from "classnames";
 import * as React from "react";
-import { type HNComment, getHNComment } from "@/lib/hn";
 
 const BATCH_SIZE = 10;
 
@@ -83,9 +83,7 @@ export function Comment(props: Props) {
   React.useEffect(() => {
     const controller = new AbortController();
     if (isShowing) {
-      getHNComment(commentId, controller)
-        .then(setComment)
-        .catch(console.error);
+      getHNComment(commentId, controller).then(setComment).catch(console.error);
     } else {
       try {
         controller.abort("Aborted loading comment");
@@ -123,14 +121,20 @@ export function Comment(props: Props) {
           "pl-8": !isTop,
           "border-t border-neutral-600 pt-2":
             isTop && (hasStoryText || index !== 0),
+          // dim every other comment in the tree while one is hovered
+          "[&:has(summary:hover)_summary:not(:hover)]:opacity-50": isTop,
         },
-        "[&_a]:break-words [&_a]:text-[#f60] hover:[&_a]:text-[#f0a675]",
+        "[&_a]:wrap-break-word [&_a]:text-[#f60] [&_a:hover]:text-[#f0a675]",
+        // direct parent of the hovered comment; :not(:hover) keeps specificity above the 50% rule
+        "[&:has(>details>summary:hover)>summary:not(:hover)]:opacity-70",
         "[&_p]:mt-2",
         "[&_pre]:mb-2 [&_pre]:overflow-x-auto [&_pre]:text-sm [&_pre]:leading-6",
       )}
     >
       <summary
-        className={classNames("mb-2", { "list-none": !kids })}
+        className={classNames("pb-2 transition-opacity duration-200", {
+          "list-none": !kids,
+        })}
         dangerouslySetInnerHTML={{
           __html: `${text} [<a target="_blank" href="https://news.ycombinator.com/item?id=${commentId}">${by}</a>]`,
         }}
