@@ -146,7 +146,9 @@ export function Comment(props: Props) {
           // dim every other comment in the tree while one is hovered
           "[&:has(summary:hover)_summary:not(:hover)]:opacity-50": isTop,
         },
-        "[&_a]:wrap-break-word [&_a]:text-[#f60] [&_a:hover]:text-[#f0a675]",
+        "[&_a]:wrap-break-word [&_a]:font-condensed [&_a]:text-[LinkText] [&_a:hover]:text-[color-mix(in_srgb,LinkText,white_40%)]",
+        // orange is reserved for links back to Hacker News (the author link)
+        "[&_a[href^='https://news.ycombinator.com/']]:font-sans [&_a[href^='https://news.ycombinator.com/']]:text-[#f60] [&_a[href^='https://news.ycombinator.com/']:hover]:text-[#f0a675]",
         // direct parent of the hovered comment; :not(:hover) keeps specificity above the 50% rule
         "[&:has(>details>summary:hover)>summary:not(:hover)]:opacity-70",
         "[&_p]:mt-2",
