@@ -58,7 +58,7 @@ export function CommentList({
             });
           }}
           className={classNames(
-            "my-2 cursor-pointer rounded bg-transparent px-3 py-1.5 text-sm text-neutral-200 hover:bg-neutral-700 active:bg-neutral-600",
+            "my-2 cursor-pointer text-neutral-400 underline hover:text-white",
             { "ml-8": !isTop },
           )}
         >
@@ -74,13 +74,21 @@ function formatTime(unix: number) {
   const date = new Date(unix * 1000);
   const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
   if (minutes < 60) {
-    return new Intl.RelativeTimeFormat(locales).format(-Math.max(minutes, 0), "minute");
+    return new Intl.RelativeTimeFormat(locales).format(
+      -Math.max(minutes, 0),
+      "minute",
+    );
   }
   const timeStyle = { hour: "numeric", minute: "2-digit" } as const;
   if (date.toDateString() === new Date().toDateString()) {
     return date.toLocaleTimeString(locales, timeStyle);
   }
-  return date.toLocaleString(locales, { day: "2-digit", month: "2-digit", year: "numeric", ...timeStyle });
+  return date.toLocaleString(locales, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    ...timeStyle,
+  });
 }
 
 export const EmptyComment = () => (
