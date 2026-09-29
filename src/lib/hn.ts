@@ -14,6 +14,7 @@ export type HNStory = {
 export type HNComment = {
   text: string;
   by: string;
+  time: number;
   kids: number[] | undefined;
   deleted: boolean | undefined;
   dead: boolean | undefined;

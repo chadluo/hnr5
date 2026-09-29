@@ -69,6 +69,20 @@ export function CommentList({
   );
 }
 
+function formatTime(unix: number) {
+  const locales = navigator.languages as string[];
+  const date = new Date(unix * 1000);
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (minutes < 60) {
+    return new Intl.RelativeTimeFormat(locales).format(-Math.max(minutes, 0), "minute");
+  }
+  const timeStyle = { hour: "numeric", minute: "2-digit" } as const;
+  if (date.toDateString() === new Date().toDateString()) {
+    return date.toLocaleTimeString(locales, timeStyle);
+  }
+  return date.toLocaleString(locales, { day: "2-digit", month: "2-digit", year: "numeric", ...timeStyle });
+}
+
 export const EmptyComment = () => (
   <span className="italic">No comments yet.</span>
 );
@@ -104,7 +118,7 @@ export function Comment(props: Props) {
     return <></>;
   }
 
-  const { text, by, kids, deleted, dead } = comment;
+  const { text, by, time, kids, deleted, dead } = comment;
 
   return !deleted && !dead ? (
     <details
@@ -136,7 +150,7 @@ export function Comment(props: Props) {
           "list-none": !kids,
         })}
         dangerouslySetInnerHTML={{
-          __html: `${text} [<a target="_blank" href="https://news.ycombinator.com/item?id=${commentId}">${by}</a>]`,
+          __html: `${text} [<a target="_blank" title="${formatTime(time)}" href="https://news.ycombinator.com/item?id=${commentId}">${by}</a>]`,
         }}
       />
       {isShowing && kids && (
